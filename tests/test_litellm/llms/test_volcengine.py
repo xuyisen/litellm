@@ -1,8 +1,4 @@
-import os
-import sys
 from unittest.mock import MagicMock, patch
-
-from pydantic import BaseModel
 
 from litellm.llms.volcengine import VolcEngineConfig
 from litellm.utils import get_optional_params
@@ -24,7 +20,7 @@ class TestVolcEngineConfig:
         )
 
         assert mapped_params == {
-            "thinking": {"type": "disabled"},
+            "extra_body": {"thinking": {"type": "disabled"}},
         }
 
         e2e_mapped_params = get_optional_params(
@@ -34,7 +30,7 @@ class TestVolcEngineConfig:
             drop_params=False,
         )
 
-        assert "thinking" in e2e_mapped_params and e2e_mapped_params["thinking"] == {
+        assert "extra_body" in e2e_mapped_params and e2e_mapped_params["extra_body"]["thinking"] == {
             "type": "enabled",
         }
 
@@ -73,7 +69,7 @@ class TestVolcEngineConfig:
             )
 
             mock_create.assert_called_once()
-            print(mock_create.call_args.kwargs)
+
             assert mock_create.call_args.kwargs["extra_body"] == {
                 "thinking": {"type": "disabled"},
             }
