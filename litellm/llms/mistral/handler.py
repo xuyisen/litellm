@@ -4,7 +4,7 @@ Mistral chat completion handler
 For handling Mistral chat completions using the newer llm_http_handler pattern.
 """
 
-from typing import Optional
+
 from litellm.llms.custom_httpx.llm_http_handler import BaseLLMHTTPHandler
 from litellm.llms.mistral.mistral_chat_transformation import MistralConfig
 from litellm.types.utils import ModelResponse
@@ -15,7 +15,7 @@ base_llm_http_handler = BaseLLMHTTPHandler()
 def completion(
     model: str,
     messages: list,
-    api_base: str,
+    api_base: str | None,
     custom_llm_provider: str,
     model_response: ModelResponse,
     encoding,
@@ -24,10 +24,10 @@ def completion(
     timeout,
     litellm_params: dict,
     acompletion: bool,
-    stream: Optional[bool] = False,
+    stream: bool | None = False,
     fake_stream: bool = False,
-    api_key: Optional[str] = None,
-    headers: Optional[dict] = None,
+    api_key: str | None = None,
+    headers: dict | None = None,
     client=None,
     **kwargs,
 ):
@@ -46,7 +46,7 @@ def completion(
     return base_llm_http_handler.completion(
         model=model,
         messages=messages,
-        api_base=api_base,
+        api_base=api_base,  # type: ignore[arg-type]
         custom_llm_provider=custom_llm_provider,
         model_response=model_response,
         encoding=encoding,
@@ -68,7 +68,7 @@ def completion(
 async def acompletion(
     model: str,
     messages: list,
-    api_base: str,
+    api_base: str | None,
     custom_llm_provider: str,
     model_response: ModelResponse,
     encoding,
@@ -76,12 +76,12 @@ async def acompletion(
     optional_params: dict,
     timeout,
     litellm_params: dict,
-    stream: Optional[bool] = False,
+    stream: bool | None = False,
     fake_stream: bool = False,
-    api_key: Optional[str] = None,
-    headers: Optional[dict] = {},
+    api_key: str | None = None,
+    headers: dict | None = {},
     client=None,
-    provider_config: Optional[MistralConfig] = None,
+    provider_config: MistralConfig | None = None,
 ):
     """
     Async Mistral completion using the newer llm_http_handler pattern.
@@ -92,7 +92,7 @@ async def acompletion(
     return await base_llm_http_handler.async_completion(
         custom_llm_provider=custom_llm_provider,
         provider_config=provider_config,
-        api_base=api_base,
+        api_base=api_base,  # type: ignore[arg-type]
         headers=headers or {},
         data={},  # Will be set by transform_request
         timeout=timeout,
