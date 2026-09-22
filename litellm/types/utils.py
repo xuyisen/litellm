@@ -2315,6 +2315,7 @@ class LlmProviders(str, Enum):
     GRADIENT_AI = "gradient_ai"
     LLAMA = "meta_llama"
     NSCALE = "nscale"
+    DIGITALOCEAN = "digitalocean"
 
 
 # Create a set of all provider values for quick lookup

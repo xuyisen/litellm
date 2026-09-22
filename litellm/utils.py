@@ -6844,6 +6844,8 @@ class ProviderConfigManager:
             return litellm.LiteLLMProxyChatConfig()
         elif litellm.LlmProviders.OPENAI == provider:
             return litellm.OpenAIGPTConfig()
+        elif litellm.LlmProviders.GITHUB_COPILOT == provider:
+            return litellm.GithubCopilotConfig()
         elif litellm.LlmProviders.DIGITALOCEAN == provider:
             return litellm.DigitalOceanConfig()
         elif litellm.LlmProviders.NSCALE == provider:
