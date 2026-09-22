@@ -2,7 +2,7 @@
 CRUD ENDPOINTS FOR GUARDRAILS
 """
 
-from typing import Any, Dict, List, Literal, Optional, Type, Union, cast
+from typing import Any, Union, cast
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -16,7 +16,6 @@ from litellm.types.guardrails import (
     Guardrail,
     GuardrailEventHooks,
     GuardrailInfoResponse,
-    GuardrailParamUITypes,
     GuardrailUIAddGuardrailSettings,
     LakeraV2GuardrailConfigModel,
     ListGuardrailsResponse,
@@ -35,12 +34,12 @@ GUARDRAIL_REGISTRY = GuardrailRegistry()
 
 
 def _get_guardrails_list_response(
-    guardrails_config: List[Dict],
+    guardrails_config: list[dict],
 ) -> ListGuardrailsResponse:
     """
     Helper function to get the guardrails list response
     """
-    guardrail_configs: List[GuardrailInfoResponse] = []
+    guardrail_configs: list[GuardrailInfoResponse] = []
     for guardrail in guardrails_config:
         guardrail_configs.append(
             GuardrailInfoResponse(
@@ -97,7 +96,7 @@ async def list_guardrails():
 
     config = proxy_config.config
 
-    _guardrails_config = cast(Optional[list[dict]], config.get("guardrails"))
+    _guardrails_config = cast(list[dict] | None, config.get("guardrails"))
 
     if _guardrails_config is None:
         return _get_guardrails_list_response([])
@@ -151,11 +150,9 @@ async def list_guardrails_v2():
         raise HTTPException(status_code=500, detail="Prisma client not initialized")
 
     try:
-        guardrails = await GUARDRAIL_REGISTRY.get_all_guardrails_from_db(
-            prisma_client=prisma_client
-        )
+        guardrails = await GUARDRAIL_REGISTRY.get_all_guardrails_from_db(prisma_client=prisma_client)
 
-        guardrail_configs: List[GuardrailInfoResponse] = []
+        guardrail_configs: list[GuardrailInfoResponse] = []
         seen_guardrail_ids = set()
         for guardrail in guardrails:
             guardrail_configs.append(
@@ -256,9 +253,7 @@ async def create_guardrail(request: CreateGuardrailRequest):
         raise HTTPException(status_code=500, detail="Prisma client not initialized")
 
     try:
-        result = await GUARDRAIL_REGISTRY.add_guardrail_to_db(
-            guardrail=request.guardrail, prisma_client=prisma_client
-        )
+        result = await GUARDRAIL_REGISTRY.add_guardrail_to_db(guardrail=request.guardrail, prisma_client=prisma_client)
         return result
     except Exception as e:
         verbose_proxy_logger.exception(f"Error adding guardrail to db: {e}")
@@ -334,9 +329,7 @@ async def update_guardrail(guardrail_id: str, request: UpdateGuardrailRequest):
         )
 
         if existing_guardrail is None:
-            raise HTTPException(
-                status_code=404, detail=f"Guardrail with ID {guardrail_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Guardrail with ID {guardrail_id} not found")
 
         result = await GUARDRAIL_REGISTRY.update_guardrail_in_db(
             guardrail_id=guardrail_id,
@@ -387,9 +380,7 @@ async def delete_guardrail(guardrail_id: str):
         )
 
         if existing_guardrail is None:
-            raise HTTPException(
-                status_code=404, detail=f"Guardrail with ID {guardrail_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Guardrail with ID {guardrail_id} not found")
 
         result = await GUARDRAIL_REGISTRY.delete_guardrail_from_db(
             guardrail_id=guardrail_id, prisma_client=prisma_client
@@ -470,25 +461,17 @@ async def patch_guardrail(guardrail_id: str, request: PatchGuardrailRequest):
         )
 
         if existing_guardrail is None:
-            raise HTTPException(
-                status_code=404, detail=f"Guardrail with ID {guardrail_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Guardrail with ID {guardrail_id} not found")
 
         # Create updated guardrail object
         guardrail_name = (
-            request.guardrail_name
-            if request.guardrail_name is not None
-            else existing_guardrail.get("guardrail_name")
+            request.guardrail_name if request.guardrail_name is not None else existing_guardrail.get("guardrail_name")
         )
 
         # Update litellm_params if default_on is provided or pii_entities_config is provided
-        litellm_params = LitellmParams(
-            **dict(existing_guardrail.get("litellm_params", {}))
-        )
+        litellm_params = LitellmParams(**dict(existing_guardrail.get("litellm_params", {})))
         if request.litellm_params is not None:
-            requested_litellm_params = request.litellm_params.model_dump(
-                exclude_unset=True
-            )
+            requested_litellm_params = request.litellm_params.model_dump(exclude_unset=True)
             litellm_params_dict = litellm_params.model_dump(exclude_unset=True)
             litellm_params_dict.update(requested_litellm_params)
             litellm_params = LitellmParams(**litellm_params_dict)
@@ -568,7 +551,6 @@ async def get_guardrail_info(guardrail_id: str):
     }
     ```
     """
-    from pydantic import BaseModel
 
     from litellm.litellm_core_utils.litellm_logging import _get_masked_values
     from litellm.proxy.guardrails.guardrail_registry import IN_MEMORY_GUARDRAIL_HANDLER
@@ -582,29 +564,29 @@ async def get_guardrail_info(guardrail_id: str):
             guardrail_id=guardrail_id, prisma_client=prisma_client
         )
         if result is None:
-            result = IN_MEMORY_GUARDRAIL_HANDLER.get_guardrail_by_id(
-                guardrail_id=guardrail_id
-            )
+            result = IN_MEMORY_GUARDRAIL_HANDLER.get_guardrail_by_id(guardrail_id=guardrail_id)
 
         if result is None:
-            raise HTTPException(
-                status_code=404, detail=f"Guardrail with ID {guardrail_id} not found"
-            )
+            raise HTTPException(status_code=404, detail=f"Guardrail with ID {guardrail_id} not found")
 
-        litellm_params: Optional[LitellmParams] = result.get("litellm_params")
-        result_litellm_params_dict = (
-            litellm_params.model_dump(exclude_none=True) if litellm_params else {}
-        )
+        litellm_params: LitellmParams | None = result.get("litellm_params")
+        if isinstance(litellm_params, dict):
+            litellm_params = LitellmParams(**litellm_params)
+        result_litellm_params_dict = litellm_params.model_dump(exclude_none=True) if litellm_params else {}
         masked_litellm_params_dict = _get_masked_values(
             result_litellm_params_dict,
             unmasked_length=4,
             number_of_asterisks=4,
         )
+        if masked_litellm_params_dict:
+            masked_litellm_params = LitellmParams(**masked_litellm_params_dict)
+        else:
+            masked_litellm_params = None
 
         return GuardrailInfoResponse(
             guardrail_id=result.get("guardrail_id"),
             guardrail_name=result.get("guardrail_name"),
-            litellm_params=masked_litellm_params_dict,
+            litellm_params=masked_litellm_params,
             guardrail_info=dict(result.get("guardrail_info") or {}),
             created_at=result.get("created_at"),
             updated_at=result.get("updated_at"),
@@ -667,9 +649,7 @@ def _get_field_type_from_annotation(field_annotation: Any) -> str:
         return "dict"
 
     # Handle Literal types
-    if hasattr(field_annotation, "__origin__") and hasattr(
-        field_annotation, "__args__"
-    ):
+    if hasattr(field_annotation, "__origin__") and hasattr(field_annotation, "__args__"):
         # Check for Literal types (Python 3.8+)
         origin = field_annotation.__origin__
         if hasattr(origin, "__name__") and origin.__name__ == "Literal":
@@ -678,9 +658,7 @@ def _get_field_type_from_annotation(field_annotation: Any) -> str:
     # Handle basic types
     if field_annotation is str:
         return "string"
-    elif field_annotation is int:
-        return "number"
-    elif field_annotation is float:
+    elif field_annotation is int or field_annotation is float:
         return "number"
     elif field_annotation is bool:
         return "boolean"
@@ -693,7 +671,7 @@ def _get_field_type_from_annotation(field_annotation: Any) -> str:
     return "string"
 
 
-def _extract_literal_values(annotation: Any) -> List[str]:
+def _extract_literal_values(annotation: Any) -> list[str]:
     """
     Extract literal values from a Literal type annotation
     """
@@ -704,7 +682,7 @@ def _extract_literal_values(annotation: Any) -> List[str]:
     return []
 
 
-def _get_dict_key_options(field_annotation: Any) -> Optional[List[str]]:
+def _get_dict_key_options(field_annotation: Any) -> list[str] | None:
     """
     Extract key options from Dict[Literal[...], T] types
     """
@@ -736,7 +714,7 @@ def _get_dict_value_type(field_annotation: Any) -> str:
     return "string"
 
 
-def _get_list_element_options(field_annotation: Any) -> Optional[List[str]]:
+def _get_list_element_options(field_annotation: Any) -> list[str] | None:
     """
     Extract element options from List[Literal[...]] types
     """
@@ -752,13 +730,13 @@ def _get_list_element_options(field_annotation: Any) -> Optional[List[str]]:
     return None
 
 
-def _get_fields_from_model(model_class: Type[BaseModel]) -> Dict[str, Any]:
+def _get_fields_from_model(model_class: type[BaseModel]) -> dict[str, Any]:
     """
     Get the fields from a Pydantic model as a nested dictionary structure
     """
     import inspect
 
-    def _extract_fields_recursive(model: Type[BaseModel]) -> Dict[str, Any]:
+    def _extract_fields_recursive(model: type[BaseModel]) -> dict[str, Any]:
         fields = {}
 
         for field_name, field in model.model_fields.items():
@@ -795,9 +773,7 @@ def _get_fields_from_model(model_class: Type[BaseModel]) -> Dict[str, Any]:
 
             if is_basemodel_subclass:
                 # Recursively get fields from the nested model
-                nested_fields = _extract_fields_recursive(
-                    cast(Type[BaseModel], field_annotation)
-                )
+                nested_fields = _extract_fields_recursive(cast(type[BaseModel], field_annotation))
                 fields[field_name] = {
                     "description": description,
                     "required": required,
