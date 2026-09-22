@@ -1,6 +1,4 @@
 import uuid
-from copy import deepcopy
-from typing import Optional
 
 import litellm
 from litellm._logging import verbose_logger
@@ -39,7 +37,7 @@ async def async_completion_with_fallbacks(**kwargs):
     litellm_logging_obj = base_kwargs.pop("litellm_logging_obj", None)
 
     # Try each fallback model
-    most_recent_exception_str: Optional[str] = None
+    most_recent_exception_str: str | None = None
     for fallback in fallbacks:
         try:
             completion_kwargs = safe_deep_copy(base_kwargs)
@@ -61,7 +59,7 @@ async def async_completion_with_fallbacks(**kwargs):
 
         except Exception as e:
             verbose_logger.exception(
-                f"Fallback attempt failed for model {model}: {str(e)}"
+                f"Fallback attempt failed for model {model}: {e!s}"
             )
             most_recent_exception_str = str(e)
             continue
