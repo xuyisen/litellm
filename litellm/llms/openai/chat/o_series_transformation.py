@@ -11,7 +11,8 @@ Translations handled by LiteLLM:
 - Logprobs => drop param (if user opts in to dropping param) 
 """
 
-from typing import Any, Coroutine, List, Literal, Optional, Union, cast, overload
+from collections.abc import Coroutine
+from typing import Any, Literal, cast, overload
 
 import litellm
 from litellm import verbose_logger
@@ -37,8 +38,8 @@ class OpenAIOSeriesConfig(OpenAIGPTConfig):
         return super().get_config()
 
     def translate_developer_role_to_system_role(
-        self, messages: List[AllMessageValues]
-    ) -> List[AllMessageValues]:
+        self, messages: list[AllMessageValues]
+    ) -> list[AllMessageValues]:
         """
         O-series models support `developer` role.
         """
@@ -109,7 +110,7 @@ class OpenAIOSeriesConfig(OpenAIGPTConfig):
                 "max_tokens"
             )
         if "temperature" in non_default_params:
-            temperature_value: Optional[float] = non_default_params.pop("temperature")
+            temperature_value: float | None = non_default_params.pop("temperature")
             if temperature_value is not None:
                 if temperature_value == 1:
                     optional_params["temperature"] = temperature_value
@@ -119,9 +120,7 @@ class OpenAIOSeriesConfig(OpenAIGPTConfig):
                         pass
                     else:
                         raise litellm.utils.UnsupportedParamsError(
-                            message="O-series models don't support temperature={}. Only temperature=1 is supported. To drop unsupported openai params from the call, set `litellm.drop_params = True`".format(
-                                temperature_value
-                            ),
+                            message=f"O-series models don't support temperature={temperature_value}. Only temperature=1 is supported. To drop unsupported openai params from the call, set `litellm.drop_params = True`",
                             status_code=400,
                         )
 
@@ -131,28 +130,29 @@ class OpenAIOSeriesConfig(OpenAIGPTConfig):
 
     def is_model_o_series_model(self, model: str) -> bool:
         model = model.split("/")[-1]  # could be "openai/o3" or "o3"
-        return model in litellm.open_ai_chat_completion_models and any(
-            model.startswith(pfx) for pfx in ("o1", "o3", "o4")
+        return model in {"o1", "o3", "o4-mini"} or any(
+            model.startswith(pfx) and len(model) > len(pfx)
+            for pfx in ("o1-", "o3-", "o4-")
         )
 
     @overload
     def _transform_messages(
-        self, messages: List[AllMessageValues], model: str, is_async: Literal[True]
-    ) -> Coroutine[Any, Any, List[AllMessageValues]]:
+        self, messages: list[AllMessageValues], model: str, is_async: Literal[True]
+    ) -> Coroutine[Any, Any, list[AllMessageValues]]:
         ...
 
     @overload
     def _transform_messages(
         self,
-        messages: List[AllMessageValues],
+        messages: list[AllMessageValues],
         model: str,
         is_async: Literal[False] = False,
-    ) -> List[AllMessageValues]:
+    ) -> list[AllMessageValues]:
         ...
 
     def _transform_messages(
-        self, messages: List[AllMessageValues], model: str, is_async: bool = False
-    ) -> Union[List[AllMessageValues], Coroutine[Any, Any, List[AllMessageValues]]]:
+        self, messages: list[AllMessageValues], model: str, is_async: bool = False
+    ) -> list[AllMessageValues] | Coroutine[Any, Any, list[AllMessageValues]]:
         """
         Handles limitations of O-1 model family.
         - modalities: image => drop param (if user opts in to dropping param)

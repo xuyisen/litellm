@@ -5,16 +5,15 @@ organizations, teams, and keys.
 
 import json
 import uuid
-from typing import Dict, Optional, Union
 
 from litellm._logging import verbose_proxy_logger
 from litellm.proxy.utils import PrismaClient
 
 
 async def attach_object_permission_to_dict(
-    data_dict: Dict,
+    data_dict: dict,
     prisma_client: PrismaClient,
-) -> Dict:
+) -> dict:
     """
     Helper method to attach object_permission to a dictionary if object_permission_id is set.
     
@@ -53,10 +52,10 @@ async def attach_object_permission_to_dict(
 
 
 async def handle_update_object_permission_common(
-    data_json: Dict,
-    existing_object_permission_id: Optional[str],
-    prisma_client: Optional[PrismaClient],
-) -> Optional[str]:
+    data_json: dict,
+    existing_object_permission_id: str | None,
+    prisma_client: PrismaClient | None,
+) -> str | None:
     """
     Common logic for handling object permission updates across organizations, teams, and keys.
 
@@ -85,7 +84,7 @@ async def handle_update_object_permission_common(
     # Ensure `object_permission` is not added to the data_json
     # We need to update the entity at the object_permission_id level in the LiteLLM_ObjectPermissionTable
     #########################################################
-    new_object_permission: Union[dict, str] = data_json.pop("object_permission", None)
+    new_object_permission: dict | str = data_json.pop("object_permission", None)
     if new_object_permission is None:
         return None
 
@@ -93,11 +92,12 @@ async def handle_update_object_permission_common(
     object_permission_id_to_use: str = existing_object_permission_id or str(
         uuid.uuid4()
     )
-    existing_object_permissions_dict: Dict = {}
+    object_permission_id_to_lookup: str | None = existing_object_permission_id
+    existing_object_permissions_dict: dict = {}
 
     existing_object_permission = (
         await prisma_client.db.litellm_objectpermissiontable.find_unique(
-            where={"object_permission_id": object_permission_id_to_use},
+            where={"object_permission_id": object_permission_id_to_lookup},
         )
     )
 
