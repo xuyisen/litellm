@@ -4,8 +4,9 @@ LiteLLM MCP Server Routes
 
 import asyncio
 import contextlib
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import ConfigDict
@@ -77,7 +78,7 @@ if MCP_AVAILABLE:
         Object returned by the /tools/list REST API route.
         """
 
-        mcp_info: Optional[MCPInfo] = None
+        mcp_info: MCPInfo | None = None
         model_config = ConfigDict(arbitrary_types_allowed=True)
 
     ########################################################
@@ -164,7 +165,7 @@ if MCP_AVAILABLE:
     ########################################################
 
     @server.list_tools()
-    async def list_tools() -> List[MCPTool]:
+    async def list_tools() -> list[MCPTool]:
         """
         List all available tools
         """
@@ -189,8 +190,8 @@ if MCP_AVAILABLE:
 
     @server.call_tool()
     async def mcp_server_tool_call(
-        name: str, arguments: Dict[str, Any] | None
-    ) -> List[Union[TextContent, ImageContent, EmbeddedResource]]:
+        name: str, arguments: dict[str, Any] | None
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """
         Call a specific tool with the provided arguments
 
@@ -258,11 +259,11 @@ if MCP_AVAILABLE:
     ########################################################
 
     async def _get_tools_from_mcp_servers(
-        user_api_key_auth: Optional[UserAPIKeyAuth],
-        mcp_auth_header: Optional[str],
-        mcp_servers: Optional[List[str]],
-        mcp_server_auth_headers: Optional[Dict[str, str]] = None,
-    ) -> List[MCPTool]:
+        user_api_key_auth: UserAPIKeyAuth | None,
+        mcp_auth_header: str | None,
+        mcp_servers: list[str] | None,
+        mcp_server_auth_headers: dict[str, str] | None = None,
+    ) -> list[MCPTool]:
         """
         Helper method to fetch tools from MCP servers based on server filtering criteria.
 
@@ -290,11 +291,12 @@ if MCP_AVAILABLE:
             allowed_mcp_servers = [
                 server_id
                 for server_id in allowed_mcp_servers
-                if any(
+                if (server := global_mcp_server_manager.get_mcp_server_by_id(server_id)) is not None
+                and any(
                     server_alias.lower() in mcp_servers_lower
                     for server_alias in [
-                        global_mcp_server_manager.get_mcp_server_by_id(server_id).alias,
-                        global_mcp_server_manager.get_mcp_server_by_id(server_id).server_name,
+                        server.alias,
+                        server.server_name,
                         server_id,
                     ]
                     if server_alias is not None
@@ -328,7 +330,7 @@ if MCP_AVAILABLE:
                 verbose_logger.debug(f"Successfully fetched {len(tools)} tools from server {server.name}")
             except Exception as e:
                 verbose_logger.exception(
-                    f"Error getting tools from server {server.name}: {str(e)}"
+                    f"Error getting tools from server {server.name}: {e!s}"
                 )
                 # Continue with other servers instead of failing completely
 
@@ -336,11 +338,11 @@ if MCP_AVAILABLE:
         return all_tools
 
     async def _list_mcp_tools(
-        user_api_key_auth: Optional[UserAPIKeyAuth] = None,
-        mcp_auth_header: Optional[str] = None,
-        mcp_servers: Optional[List[str]] = None,
-        mcp_server_auth_headers: Optional[Dict[str, str]] = None,
-    ) -> List[MCPTool]:
+        user_api_key_auth: UserAPIKeyAuth | None = None,
+        mcp_auth_header: str | None = None,
+        mcp_servers: list[str] | None = None,
+        mcp_server_auth_headers: dict[str, str] | None = None,
+    ) -> list[MCPTool]:
         """
         List all available MCP tools.
 
@@ -375,12 +377,12 @@ if MCP_AVAILABLE:
     @client
     async def call_mcp_tool(
             name: str,
-            arguments: Optional[Dict[str, Any]] = None,
-            user_api_key_auth: Optional[UserAPIKeyAuth] = None,
-            mcp_auth_header: Optional[str] = None,
-            mcp_server_auth_headers: Optional[Dict[str, str]] = None,
+            arguments: dict[str, Any] | None = None,
+            user_api_key_auth: UserAPIKeyAuth | None = None,
+            mcp_auth_header: str | None = None,
+            mcp_server_auth_headers: dict[str, str] | None = None,
             **kwargs: Any
-    ) -> List[Union[TextContent, ImageContent, EmbeddedResource]]:
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """
         Call a specific tool with the provided arguments (handles prefixed tool names)
         """
@@ -402,7 +404,7 @@ if MCP_AVAILABLE:
                 server_name=server_name_from_prefix,
             )
         )
-        litellm_logging_obj: Optional[LiteLLMLoggingObj] = kwargs.get(
+        litellm_logging_obj: LiteLLMLoggingObj | None = kwargs.get(
             "litellm_logging_obj", None
         )
         if litellm_logging_obj:
@@ -413,7 +415,7 @@ if MCP_AVAILABLE:
         # Try managed server tool first (pass the full prefixed name)
         # Primary and recommended way to use MCP servers
         #########################################################
-        mcp_server: Optional[MCPServer] = (
+        mcp_server: MCPServer | None = (
             global_mcp_server_manager._get_mcp_server_from_tool_name(name)
         )
         if mcp_server:
@@ -451,8 +453,8 @@ if MCP_AVAILABLE:
 
     def _get_standard_logging_mcp_tool_call(
         name: str,
-        arguments: Dict[str, Any],
-        server_name: Optional[str],
+        arguments: dict[str, Any],
+        server_name: str | None,
     ) -> StandardLoggingMCPToolCall:
         mcp_server = global_mcp_server_manager._get_mcp_server_from_tool_name(name)
         if mcp_server:
@@ -473,11 +475,11 @@ if MCP_AVAILABLE:
 
     async def _handle_managed_mcp_tool(
         name: str,
-        arguments: Dict[str, Any],
-        user_api_key_auth: Optional[UserAPIKeyAuth] = None,
-        mcp_auth_header: Optional[str] = None,
-        mcp_server_auth_headers: Optional[Dict[str, str]] = None,
-    ) -> List[Union[TextContent, ImageContent, EmbeddedResource]]:
+        arguments: dict[str, Any],
+        user_api_key_auth: UserAPIKeyAuth | None = None,
+        mcp_auth_header: str | None = None,
+        mcp_server_auth_headers: dict[str, str] | None = None,
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """Handle tool execution for managed server tools"""
         call_tool_result = await global_mcp_server_manager.call_tool(
             name=name,
@@ -490,8 +492,8 @@ if MCP_AVAILABLE:
         return call_tool_result.content  # type: ignore[return-value]
 
     async def _handle_local_mcp_tool(
-        name: str, arguments: Dict[str, Any]
-    ) -> List[Union[TextContent, ImageContent, EmbeddedResource]]:
+        name: str, arguments: dict[str, Any]
+    ) -> list[TextContent | ImageContent | EmbeddedResource]:
         """
         Handle tool execution for local registry tools
         Note: Local tools don't use prefixes, so we use the original name
@@ -504,7 +506,7 @@ if MCP_AVAILABLE:
             result = tool.handler(**arguments)
             return [TextContent(text=str(result), type="text")]
         except Exception as e:
-            return [TextContent(text=f"Error: {str(e)}", type="text")]
+            return [TextContent(text=f"Error: {e!s}", type="text")]
 
     async def extract_mcp_auth_context(scope, path):
         """
@@ -593,7 +595,7 @@ if MCP_AVAILABLE:
         "/enabled",
         description="Returns if the MCP server is enabled",
     )
-    def get_mcp_server_enabled() -> Dict[str, bool]:
+    def get_mcp_server_enabled() -> dict[str, bool]:
         """
         Returns if the MCP server is enabled
         """
@@ -610,9 +612,9 @@ if MCP_AVAILABLE:
 
     def set_auth_context(
         user_api_key_auth: UserAPIKeyAuth,
-        mcp_auth_header: Optional[str] = None,
-        mcp_servers: Optional[List[str]] = None,
-        mcp_server_auth_headers: Optional[Dict[str, str]] = None,
+        mcp_auth_header: str | None = None,
+        mcp_servers: list[str] | None = None,
+        mcp_server_auth_headers: dict[str, str] | None = None,
     ) -> None:
         """
         Set the UserAPIKeyAuth in the auth context variable.
@@ -632,7 +634,7 @@ if MCP_AVAILABLE:
         auth_context_var.set(auth_user)
 
     def get_auth_context() -> (
-        Tuple[Optional[UserAPIKeyAuth], Optional[str], Optional[List[str]], Optional[Dict[str, str]]]
+        tuple[UserAPIKeyAuth | None, str | None, list[str] | None, dict[str, str] | None]
     ):
         """
         Get the UserAPIKeyAuth from the auth context variable.
