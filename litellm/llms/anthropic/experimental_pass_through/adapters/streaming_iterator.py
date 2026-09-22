@@ -4,7 +4,8 @@ import json
 import traceback
 import uuid
 from collections import deque
-from typing import TYPE_CHECKING, Any, AsyncIterator, Iterator, Literal, Optional
+from collections.abc import AsyncIterator, Iterator
+from typing import TYPE_CHECKING, Any, Literal
 
 from litellm import verbose_logger
 from litellm.types.llms.anthropic import UsageDelta
@@ -31,14 +32,15 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
     def __init__(self, completion_stream: Any, model: str):
         super().__init__(completion_stream)
         self.model = model
+        self.pending_new_content_block = False
 
     sent_first_chunk: bool = False
     sent_content_block_start: bool = False
     sent_content_block_finish: bool = False
     current_content_block_type: Literal["text", "tool_use"] = "text"
     sent_last_message: bool = False
-    holding_chunk: Optional[Any] = None
-    holding_stop_reason_chunk: Optional[Any] = None
+    holding_chunk: Any | None = None
+    holding_stop_reason_chunk: Any | None = None
     current_content_block_index: int = 0
     current_content_block_start: ContentBlockContentBlockDict = TextBlock(
         type="text",
@@ -55,7 +57,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
                 return {
                     "type": "message_start",
                     "message": {
-                        "id": "msg_{}".format(uuid.uuid4()),
+                        "id": f"msg_{uuid.uuid4()}",
                         "type": "message",
                         "role": "assistant",
                         "content": [],
@@ -110,10 +112,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
                         "index": max(self.current_content_block_index - 1, 0),
                     }
 
-                if (
-                    processed_chunk["type"] == "message_delta"
-                    and self.sent_content_block_finish is False
-                ):
+                if processed_chunk["type"] == "message_delta" and self.sent_content_block_finish is False:
                     self.holding_chunk = processed_chunk
                     self.sent_content_block_finish = True
                     return {
@@ -140,9 +139,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
                 return {"type": "message_stop"}
             raise StopIteration
         except Exception as e:
-            verbose_logger.error(
-                "Anthropic Adapter - {}\n{}".format(e, traceback.format_exc())
-            )
+            verbose_logger.error(f"Anthropic Adapter - {e}\n{traceback.format_exc()}")
             raise StopAsyncIteration
 
     async def __anext__(self):
@@ -160,7 +157,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
                     {
                         "type": "message_start",
                         "message": {
-                            "id": "msg_{}".format(uuid.uuid4()),
+                            "id": f"msg_{uuid.uuid4()}",
                             "type": "message",
                             "role": "assistant",
                             "content": [],
@@ -199,10 +196,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
                 )
 
                 # Check if this is a usage chunk and we have a held stop_reason chunk
-                if (
-                    self.holding_stop_reason_chunk is not None
-                    and getattr(chunk, "usage", None) is not None
-                ):
+                if self.holding_stop_reason_chunk is not None and getattr(chunk, "usage", None) is not None:
                     # Merge usage into the held stop_reason chunk
                     merged_chunk = self.holding_stop_reason_chunk.copy()
                     if "delta" not in merged_chunk:
@@ -256,10 +250,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
                     # Return the first queued item
                     return self.chunk_queue.popleft()
 
-                if (
-                    processed_chunk["type"] == "message_delta"
-                    and self.sent_content_block_finish is False
-                ):
+                if processed_chunk["type"] == "message_delta" and self.sent_content_block_finish is False:
                     # Queue both the content_block_stop and the holding chunk
                     self.chunk_queue.append(
                         {
