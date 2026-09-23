@@ -31,6 +31,7 @@ class AnthropicStreamWrapper(AdapterCompletionStreamWrapper):
     def __init__(self, completion_stream: Any, model: str):
         super().__init__(completion_stream)
         self.model = model
+        self.pending_new_content_block = None
 
     sent_first_chunk: bool = False
     sent_content_block_start: bool = False
