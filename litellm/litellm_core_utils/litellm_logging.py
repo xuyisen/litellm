@@ -1410,6 +1410,11 @@ class Logging(LiteLLMLoggingBaseClass):
                 )
 
             return start_time, end_time, result
+        except ValueError as e:
+            verbose_logger.warning(
+                f"LiteLLM.Logging: [Non-Blocking] ValueError in success handler (stream closed): {str(e)}"
+            )
+            return start_time, end_time, result
         except Exception as e:
             raise Exception(f"[Non-Blocking] LiteLLM.Success_Call Error: {str(e)}")
 
