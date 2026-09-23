@@ -7,7 +7,7 @@ import subprocess
 import sys
 import urllib.parse
 import urllib.parse as urlparse
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import click
 import httpx
@@ -56,16 +56,16 @@ class ProxyInitializationHelpers:
 
     @staticmethod
     def _run_health_check(host, port):
-        print("\nLiteLLM: Health Testing models in config")  # noqa
+        print("\nLiteLLM: Health Testing models in config")
         response = httpx.get(url=f"http://{host}:{port}/health")
-        print(json.dumps(response.json(), indent=4))  # noqa
+        print(json.dumps(response.json(), indent=4))
 
     @staticmethod
     def _run_test_chat_completion(
         host: str,
         port: int,
         model: str,
-        test: Union[bool, str],
+        test: bool | str,
     ):
         request_model = model or "gpt-3.5-turbo"
         click.echo(
@@ -92,7 +92,7 @@ class ProxyInitializationHelpers:
         )
         click.echo(f"\nLiteLLM: response from proxy {response}")
 
-        print(  # noqa
+        print(
             f"\n LiteLLM: Making a test ChatCompletions + streaming r equest to proxy. Model={request_model}"
         )
 
@@ -108,18 +108,18 @@ class ProxyInitializationHelpers:
         )
         for chunk in stream_response:
             click.echo(f"LiteLLM: streaming response from proxy {chunk}")
-        print("\n making completion request to proxy")  # noqa
+        print("\n making completion request to proxy")
         completion_response = client.completions.create(
             model=request_model, prompt="this is a test request, write a short poem"
         )
-        print(completion_response)  # noqa
+        print(completion_response)
 
     @staticmethod
     def _get_default_unvicorn_init_args(
         host: str,
         port: int,
-        log_config: Optional[str] = None,
-        keepalive_timeout: Optional[int] = None,
+        log_config: str | None = None,
+        keepalive_timeout: int | None = None,
     ) -> dict:
         """
         Get the arguments for `uvicorn` worker
@@ -132,10 +132,10 @@ class ProxyInitializationHelpers:
             "port": port,
         }
         if log_config is not None:
-            print(f"Using log_config: {log_config}")  # noqa
+            print(f"Using log_config: {log_config}")
             uvicorn_args["log_config"] = log_config
         elif litellm.json_logs:
-            print("Using json logs. Setting log_config to None.")  # noqa
+            print("Using json logs. Setting log_config to None.")
             uvicorn_args["log_config"] = None
         if keepalive_timeout is not None:
             uvicorn_args["timeout_keep_alive"] = keepalive_timeout
@@ -148,7 +148,7 @@ class ProxyInitializationHelpers:
         port: int,
         ssl_certfile_path: str,
         ssl_keyfile_path: str,
-        ciphers: Optional[str] = None,
+        ciphers: str | None = None,
     ):
         """
         Initialize litellm with `hypercorn`
@@ -158,15 +158,15 @@ class ProxyInitializationHelpers:
         from hypercorn.asyncio import serve
         from hypercorn.config import Config
 
-        print(  # noqa
-            f"\033[1;32mLiteLLM Proxy: Starting server on {host}:{port} using Hypercorn\033[0m\n"  # noqa
-        )  # noqa
+        print(
+            f"\033[1;32mLiteLLM Proxy: Starting server on {host}:{port} using Hypercorn\033[0m\n"
+        )
         config = Config()
         config.bind = [f"{host}:{port}"]
 
         if ssl_certfile_path is not None and ssl_keyfile_path is not None:
-            print(  # noqa
-                f"\033[1;32mLiteLLM Proxy: Using SSL with certfile: {ssl_certfile_path} and keyfile: {ssl_keyfile_path}\033[0m\n"  # noqa
+            print(
+                f"\033[1;32mLiteLLM Proxy: Using SSL with certfile: {ssl_certfile_path} and keyfile: {ssl_keyfile_path}\033[0m\n"
             )
             config.certfile = ssl_certfile_path
             config.keyfile = ssl_keyfile_path
@@ -219,19 +219,19 @@ class ProxyInitializationHelpers:
                 \n
                 """
                 )
-                print()  # noqa
-                print(  # noqa
+                print()
+                print(
                     '\033[1;34mLiteLLM: Test your local proxy with: "litellm --test" This runs an openai.ChatCompletion request to your proxy [In a new terminal tab]\033[0m\n'
                 )
-                print(  # noqa
+                print(
                     f"\033[1;34mLiteLLM: Curl Command Test for your local proxy\n {curl_command} \033[0m\n"
                 )
-                print(  # noqa
+                print(
                     "\033[1;34mDocs: https://docs.litellm.ai/docs/simple_proxy\033[0m\n"
-                )  # noqa
-                print(  # noqa
+                )
+                print(
                     f"\033[1;34mSee all Router/Swagger docs on http://0.0.0.0:{port} \033[0m\n"
-                )  # noqa
+                )
 
             def load_config(self):
                 # note: This Loads the gunicorn config - has nothing to do with LiteLLM Proxy config
@@ -251,8 +251,8 @@ class ProxyInitializationHelpers:
                 # gunicorn app function
                 return self.application
 
-        print(  # noqa
-            f"\033[1;32mLiteLLM Proxy: Starting server on {host}:{port} with {num_workers} workers\033[0m\n"  # noqa
+        print(
+            f"\033[1;32mLiteLLM Proxy: Starting server on {host}:{port} with {num_workers} workers\033[0m\n"
         )
         gunicorn_options = {
             "bind": f"{host}:{port}",
@@ -265,8 +265,8 @@ class ProxyInitializationHelpers:
         }
 
         if ssl_certfile_path is not None and ssl_keyfile_path is not None:
-            print(  # noqa
-                f"\033[1;32mLiteLLM Proxy: Using SSL with certfile: {ssl_certfile_path} and keyfile: {ssl_keyfile_path}\033[0m\n"  # noqa
+            print(
+                f"\033[1;32mLiteLLM Proxy: Using SSL with certfile: {ssl_certfile_path} and keyfile: {ssl_keyfile_path}\033[0m\n"
             )
             gunicorn_options["certfile"] = ssl_certfile_path
             gunicorn_options["keyfile"] = ssl_keyfile_path
@@ -281,11 +281,11 @@ class ProxyInitializationHelpers:
             with open(os.devnull, "w") as devnull:
                 subprocess.Popen(command, stdout=devnull, stderr=devnull)
         except Exception as e:
-            print(  # noqa
+            print(
                 f"""
                 LiteLLM Warning: proxy started with `ollama` model\n`ollama serve` failed with Exception{e}. \nEnsure you run `ollama serve`
             """
-            )  # noqa
+            )
 
     @staticmethod
     def _is_port_in_use(port):
@@ -776,7 +776,7 @@ def run_server(  # noqa: PLR0915
                 else:
                     PrismaManager.setup_database(use_migrate=use_prisma_migrate)
             else:
-                print(  # noqa
+                print(
                     f"Unable to connect to DB. DATABASE_URL found in environment, but prisma package not found."  # noqa
                 )
         if port == 4000 and ProxyInitializationHelpers._is_port_in_use(port):
@@ -788,7 +788,7 @@ def run_server(  # noqa: PLR0915
             litellm._turn_on_debug()
 
         # DO NOT DELETE - enables global variables to work across files
-        from litellm.proxy.proxy_server import app  # noqa
+        from litellm.proxy.proxy_server import app
         
         # --- SEPARATE HEALTH APP LOGIC ---
         # To run the health app separately, use:
@@ -798,7 +798,7 @@ def run_server(  # noqa: PLR0915
         
         # Skip server startup if requested (after all setup is done)
         if skip_server_startup:
-            print(  # noqa
+            print(
                 "LiteLLM: Setup complete. Skipping server startup as requested."
             )
             return
@@ -811,8 +811,8 @@ def run_server(  # noqa: PLR0915
         )
         if run_gunicorn is False and run_hypercorn is False:
             if ssl_certfile_path is not None and ssl_keyfile_path is not None:
-                print(  # noqa
-                    f"\033[1;32mLiteLLM Proxy: Using SSL with certfile: {ssl_certfile_path} and keyfile: {ssl_keyfile_path}\033[0m\n"  # noqa
+                print(
+                    f"\033[1;32mLiteLLM Proxy: Using SSL with certfile: {ssl_certfile_path} and keyfile: {ssl_keyfile_path}\033[0m\n"
                 )
                 uvicorn_args["ssl_keyfile"] = ssl_keyfile_path
                 uvicorn_args["ssl_certfile"] = ssl_certfile_path
@@ -847,3 +847,28 @@ def run_server(  # noqa: PLR0915
 
 if __name__ == "__main__":
     run_server()
+
+
+def run_separate_health_app():
+    """Run a separate health app server if SEPARATE_HEALTH_APP env var is set to '1'."""
+    import os
+
+    if os.environ.get("SEPARATE_HEALTH_APP") == "1":
+        import threading
+
+        import uvicorn
+        from fastapi import FastAPI
+
+        from litellm.proxy.health_endpoints._health_endpoints import (
+            router as health_router,
+        )
+
+        health_app = FastAPI(title="LiteLLM Health Endpoints")
+        health_app.include_router(health_router)
+
+        def _run_health_server():
+            uvicorn.run(health_app, host="0.0.0.0", port=4001)
+
+        print("LiteLLM Health Endpoints: Starting separate health app on port 4001")
+        thread = threading.Thread(target=_run_health_server, daemon=True)
+        thread.start()
