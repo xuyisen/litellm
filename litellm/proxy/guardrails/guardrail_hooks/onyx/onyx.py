@@ -166,7 +166,7 @@ class OnyxGuardrail(CustomGuardrail):
             # Convert response to dict format for validation
             if isinstance(response, dict):
                 # TypedDict or plain dict
-                payload = response
+                payload: Any = response
             elif hasattr(response, "model_dump"):
                 # Pydantic model
                 payload = response.model_dump()
