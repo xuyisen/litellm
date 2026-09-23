@@ -249,9 +249,10 @@ Then provide a clear, concise answer based on your reasoning."""
             # Prepend reasoning instructions to existing system message
             for i, msg in enumerate(messages):
                 if msg.get("role") == "system":
-                    existing_content = msg.get("content", "")
+                    existing_content = cast(Union[str, List], msg.get("content", ""))
                     reasoning_prompt = self._get_mistral_reasoning_system_prompt()
                     
+                    new_content: Union[str, List]
                     # Handle both string and list content
                     if isinstance(existing_content, str):
                         # String content - prepend reasoning prompt
