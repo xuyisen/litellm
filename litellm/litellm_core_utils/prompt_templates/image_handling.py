@@ -12,6 +12,12 @@ from litellm.caching.caching import InMemoryCache
 
 MAX_IMGS_IN_MEMORY = 10
 
+IMAGE_FETCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Accept": "image/webp,image/apng,image/*,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+}  # headers to avoid 403 errors when fetching images
+
 in_memory_cache = InMemoryCache(max_size_in_memory=MAX_IMGS_IN_MEMORY)
 
 
@@ -55,7 +61,7 @@ async def async_convert_url_to_base64(url: str) -> str:
     client = litellm.module_level_aclient
     for _ in range(3):
         try:
-            response = await client.get(url, follow_redirects=True)
+            response = await client.get(url, headers=IMAGE_FETCH_HEADERS, follow_redirects=True)
             return _process_image_response(response, url)
         except Exception:
             pass
@@ -72,7 +78,7 @@ def convert_url_to_base64(url: str) -> str:
     client = litellm.module_level_client
     for _ in range(3):
         try:
-            response = client.get(url, follow_redirects=True)
+            response = client.get(url, headers=IMAGE_FETCH_HEADERS, follow_redirects=True)
             return _process_image_response(response, url)
         except Exception as e:
             verbose_logger.exception(e)
